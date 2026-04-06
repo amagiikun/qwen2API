@@ -13,11 +13,13 @@ log = logging.getLogger("qwen2api.chat")
 router = APIRouter()
 
 @router.post("/completions")
+@router.post("/chat/completions")
+@router.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     app = request.app
     users_db = app.state.users_db
     client: QwenClient = app.state.qwen_client
-    
+
     # 鉴权 (完全复原单文件逻辑)
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else ""

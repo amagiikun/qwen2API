@@ -12,6 +12,7 @@ log = logging.getLogger("qwen2api.anthropic")
 router = APIRouter()
 
 @router.post("/messages")
+@router.post("/v1/messages")
 async def anthropic_messages(request: Request):
     """
     Claude API 协议转换层 -> 转入 OpenAI/Qwen 统一处理内核
@@ -19,7 +20,7 @@ async def anthropic_messages(request: Request):
     app = request.app
     users_db = app.state.users_db
     client: QwenClient = app.state.qwen_client
-    
+
     # 鉴权 (完全复原单文件逻辑)
     auth_header = request.headers.get("x-api-key", "")
     token = auth_header

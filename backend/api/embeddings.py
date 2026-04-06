@@ -8,6 +8,7 @@ log = logging.getLogger("qwen2api.embeddings")
 router = APIRouter()
 
 @router.post("/embeddings")
+@router.post("/v1/embeddings")
 async def create_embeddings(request: Request):
     """
     Embeddings 模拟/转发接口。
