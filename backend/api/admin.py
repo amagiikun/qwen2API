@@ -108,15 +108,28 @@ async def verify_all_accounts(request: Request):
     """验证所有账号的有效性"""
     from backend.core.account_pool import AccountPool
     from backend.services.qwen_client import QwenClient
+    import logging
+    
+    log = logging.getLogger("qwen2api.admin")
     pool: AccountPool = request.app.state.account_pool
     client: QwenClient = request.app.state.qwen_client
     
+    results = []
     for acc in pool.accounts:
         is_valid = await client.verify_account(acc)
+        if not is_valid and acc.password:
+            log.info(f"[Verify] {acc.email} token失效，尝试自动刷新...")
+            is_valid = await client.auth_resolver.refresh_token(acc)
+            
+        acc.valid = is_valid
         if not is_valid:
             pool.mark_invalid(acc)
+        else:
+            await pool.add(acc) # Save updated status
             
-    return {"ok": True, "message": "All accounts verified"}
+        results.append({"email": acc.email, "valid": is_valid, "refreshed": not is_valid})
+            
+    return {"ok": True, "results": results}
 
 @router.post("/accounts/{email}/activate", dependencies=[Depends(verify_admin)])
 async def activate_account(email: str, request: Request):
@@ -151,7 +164,9 @@ async def verify_account(email: str, request: Request):
     """单独验证某个账号的有效性"""
     from backend.services.qwen_client import QwenClient
     from backend.core.account_pool import AccountPool
+    import logging
     
+    log = logging.getLogger("qwen2api.admin")
     pool: AccountPool = request.app.state.account_pool
     client: QwenClient = request.app.state.qwen_client
     
@@ -160,8 +175,16 @@ async def verify_account(email: str, request: Request):
         raise HTTPException(status_code=404, detail="Account not found")
         
     is_valid = await client.verify_account(acc)
+    if not is_valid and acc.password:
+        log.info(f"[Verify] {acc.email} token失效，尝试自动刷新...")
+        is_valid = await client.auth_resolver.refresh_token(acc)
+        
     acc.valid = is_valid
-    await pool.add(acc) # 保存状态
+    if not is_valid:
+        pool.mark_invalid(acc)
+    else:
+        await pool.add(acc) # Save updated status
+        
     return {"ok": True, "valid": is_valid}
 
 @router.delete("/accounts/{email}", dependencies=[Depends(verify_admin)])
