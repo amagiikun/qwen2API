@@ -50,6 +50,7 @@ def start_frontend() -> subprocess.Popen:
     proc = subprocess.Popen(
         [npm_exec, "run", "dev"],
         cwd=FRONTEND_DIR,
+        shell=(os.name == "nt"), # 在 Windows 上通过 shell 启动 npm 以避免找不到命令
         stdout=log_file,
         stderr=subprocess.STDOUT
     )
