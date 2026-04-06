@@ -83,6 +83,7 @@ def start_backend() -> subprocess.Popen:
     # 注入 PYTHONPATH，让 backend 内的绝对导入生效
     env = os.environ.copy()
     env["PYTHONPATH"] = str(WORKSPACE_DIR)
+    env["PYTHONIOENCODING"] = "utf-8"
     
     # 为了能读取输出并判断启动完毕，我们接管 stdout，并使用线程边读边打印
     proc = subprocess.Popen(
@@ -91,10 +92,7 @@ def start_backend() -> subprocess.Popen:
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
         bufsize=1,
-        encoding='utf-8',
-        errors='replace'
     )
     print(f"✓ Backend 进程已点火 (PID: {proc.pid})，正在初始化千问浏览器内核，请耐心等待...")
     
@@ -104,9 +102,13 @@ def start_backend() -> subprocess.Popen:
     ready_event = threading.Event()
     
     def read_output():
-        for line in proc.stdout:
-            print(line, end="")
-            if "Browser engine started" in line or "Application startup complete" in line:
+        for line in iter(proc.stdout.readline, b''):
+            try:
+                decoded_line = line.decode('utf-8', errors='replace')
+            except Exception:
+                decoded_line = str(line)
+            print(decoded_line, end="")
+            if "Browser engine started" in decoded_line or "Application startup complete" in decoded_line:
                 ready_event.set()
                 
     t = threading.Thread(target=read_output, daemon=True)
